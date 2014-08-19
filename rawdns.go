@@ -13,6 +13,7 @@ import (
 type RawDNS struct {
 	IPHeaders     *ipv4.Header
 	UDPHeader     *UDPHeader
+	DNSQuestion   *DNSQuestion
 	LocalAddress  net.IP
 	RemoteAddress net.IP
 	Payload       []byte
@@ -55,9 +56,17 @@ func (rdns *RawDNS) SetRemoteAddress(ip string) {
 	rdns.CtrlMsg.Dst = rdns.RemoteAddress
 }
 
-//SetPayload set the payload of the DNS packet
-func (rdns *RawDNS) SetPayload(payload []byte) {
+//SetUDPHeader sets the UDP header for the packet
+func (rdns *RawDNS) SetUDPHeader(header UDPHeader) {
+	//set the UDP headers
+	rdns.UDPHeader = header
+	rdns.UDPHeader.GenRandomSrcPort()
+	rdns.UDPHeader.SetChecksum(0)
+}
 
+//SetDNSQuestion set the payload of the DNS packet
+func (rdns *RawDNS) SetDNSQuestion(question DNSQuestion) {
+	rdns.DNSQuestion = question
 }
 
 //Marshall return the items required to send a raw packet
@@ -73,16 +82,12 @@ func (rdns *RawDNS) Marshall() ([]byte, []byte, ipv4.ControlMessage) {
 	rdns.IPHeaders.Version = 4
 	rdns.IPHeaders.TTL = 128
 
-	//set the query
-	query := NewQuery()
-	query.SetRequest(config.Query, "A")
-	queryb := query.Marshal()
-
-	//set the UDP headers
+	//set the UDP header length
 	rdns.UDPHeader.SetLen(8 + uint16(len(queryb)))
-	rdns.UDPHeader.GenRandomSrcPort()
-	rdns.UDPHeader.SetChecksum(0)
 	udpHead, _ := rdns.UDPHeader.Marshal()
+
+	//set the query
+	queryb := rdns.DNSQuestion.Marshal()
 
 	//set the control message
 	rdns.CtrlMsg.TTL = 128

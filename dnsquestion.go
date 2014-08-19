@@ -1,4 +1,4 @@
-package dnsraw
+package dnstools
 
 import (
 	"encoding/binary"
