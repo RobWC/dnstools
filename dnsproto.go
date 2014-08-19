@@ -1,12 +1,13 @@
-package dnsproto
+package dnstools
 
 import (
-	"github.com/miekg/dns"
-	"lib/channels/chanman"
-	"lib/protocols/dnsproto/dnsstat"
+	//"lib/channels/chanman"
 	"log"
 	"net"
 	"sync"
+
+	"./dnsstat"
+	"github.com/miekg/dns"
 )
 
 func DnsQuery(query string, wg *sync.WaitGroup, config *dns.ClientConfig, cm *chanman.ChanMan) {
@@ -26,7 +27,7 @@ func DnsQuery(query string, wg *sync.WaitGroup, config *dns.ClientConfig, cm *ch
 	if response == nil {
 	} else {
 		if response.Rcode != dns.RcodeSuccess {
-			log.Println(" query fail")
+			log.Println("query fail")
 		}
 		var stat = new(dnsstat.Info)
 		stat.Rtt = rtt

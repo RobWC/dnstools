@@ -1,17 +1,15 @@
-package dnsraw
+package dnstools
 
 import (
-	"code.google.com/p/go.net/ipv4"
-	"lib/channels/chanman"
-	"lib/config"
-	"log"
 	"net"
 	"strconv"
 	"strings"
-	"sync"
+
+	"code.google.com/p/go.net/ipv4"
 )
 
 //RawDNS data struct. Contains L3, L4 Headers, payload and control message for specifying the egress interface
+// BUG(robwc) Only supports IPv4 today
 type RawDNS struct {
 	IPHeaders     *ipv4.Header
 	UDPHeader     *UDPHeader
@@ -21,7 +19,7 @@ type RawDNS struct {
 	CtrlMsg       *ipv4.ControlMessage
 }
 
-//return an initalized RawDNS struct
+//NewRawDNS return an initalized RawDNS struct
 func NewRawDNS() *RawDNS {
 	return &RawDNS{IPHeaders: new(ipv4.Header),
 		UDPHeader:     new(UDPHeader),
@@ -31,12 +29,12 @@ func NewRawDNS() *RawDNS {
 		CtrlMsg:       new(ipv4.ControlMessage)}
 }
 
-//set destination port
+//SetDestPort set destination port
 func (rdns *RawDNS) SetDestPort(port uint16) {
 	rdns.UDPHeader.SetDstPort(port)
 }
 
-//set local or source address
+//SetLocalAddress set local or source address
 func (rdns *RawDNS) SetLocalAddress(ip string) {
 	parsedIP := strings.Split(ip, ".")
 	ip0, _ := strconv.Atoi(parsedIP[0])
@@ -46,7 +44,7 @@ func (rdns *RawDNS) SetLocalAddress(ip string) {
 	rdns.LocalAddress = net.IPv4(byte(ip0), byte(ip1), byte(ip2), byte(ip3))
 }
 
-//set remote address of
+//SetRemoteAddress set remote address of
 func (rdns *RawDNS) SetRemoteAddress(ip string) {
 	parsedIP := strings.Split(ip, ".")
 	ip0, _ := strconv.Atoi(parsedIP[0])
@@ -57,8 +55,15 @@ func (rdns *RawDNS) SetRemoteAddress(ip string) {
 	rdns.CtrlMsg.Dst = rdns.RemoteAddress
 }
 
-func (rdns *RawDNS) DnsQuery(wg *sync.WaitGroup, config *config.Config, cm *chanman.ChanMan) {
-	defer wg.Done()
+//SetPayload set the payload of the DNS packet
+func (rdns *RawDNS) SetPayload(payload []byte) {
+
+}
+
+//Marshall return the items required to send a raw packet
+// returns the three elements needed to sent into a raw packet
+// IPheaders []byte, Payload []byte, ControlMessage ipv4.ControlMessage
+func (rdns *RawDNS) Marshall() ([]byte, []byte, ipv4.ControlMessage) {
 
 	//set the IP headers
 	rdns.IPHeaders.Src = rdns.LocalAddress
@@ -83,21 +88,6 @@ func (rdns *RawDNS) DnsQuery(wg *sync.WaitGroup, config *config.Config, cm *chan
 	rdns.CtrlMsg.TTL = 128
 	rdns.CtrlMsg.IfIndex = config.Interface.Index
 
-	//ip on mac, ip4:udp for linux
-	con, err := net.ListenPacket("ip4:udp", "0.0.0.0")
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	//new raw packet connection
-	rawCon, err := ipv4.NewRawConn(con)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	//set query
-	//query := []byte{0x0d, 0x35, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x64, 0x61, 0x69, 0x73, 0x79, 0x06, 0x75, 0x62, 0x75, 0x6e, 0x74, 0x75, 0x03, 0x63, 0x6f, 0x6d, 0x00, 0x00, 0x01, 0x00, 0x01}
-
 	//set final payload
 
 	//set packet length
@@ -106,6 +96,6 @@ func (rdns *RawDNS) DnsQuery(wg *sync.WaitGroup, config *config.Config, cm *chan
 	rdns.Payload = append(rdns.Payload, udpHead...)
 	rdns.Payload = append(rdns.Payload, queryb...)
 
-	rawCon.WriteTo(rdns.IPHeaders, rdns.Payload, rdns.CtrlMsg)
-	cm.RunChan <- true
+	return rdns.IPHeaders, rdns.Payload, rdns.CtrlMsg
+
 }

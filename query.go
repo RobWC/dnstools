@@ -1,4 +1,4 @@
-package dnsraw
+package dnstools
 
 import (
 	"encoding/binary"
@@ -6,7 +6,9 @@ import (
 	"time"
 )
 
-type Query struct {
+//DNSHeader binary header for a DNS DNSHeader
+// used to create a packed DNS header to insert into a raw UDP packet
+type DNSHeader struct {
 	Id       uint16
 	Flags    uint16
 	Qdcount  uint16
@@ -14,20 +16,19 @@ type Query struct {
 	Nscount  uint16
 	Arcount  uint16
 	Arrcount uint16
-	Request  *QueryRequest
+	Request  *DNSHeaderRequest
 }
 
-
-// Creates a new Query
-func NewQuery() *Query {
-	return &Query{Id: genID(),
+// Creates a new DNSHeader
+func NewDNSHeader() *DNSHeader {
+	return &DNSHeader{Id: genID(),
 		Flags:    0x0100,
 		Qdcount:  1,
 		Ancount:  0,
 		Nscount:  0,
 		Arcount:  0,
 		Arrcount: 0,
-		Request:  NewQueryRequest()}
+		Request:  NewDNSHeaderRequest()}
 }
 
 func genID() uint16 {
@@ -35,28 +36,28 @@ func genID() uint16 {
 	return uint16(rand.Intn(65536-1) + 1)
 }
 
-func (q *Query) GenId() {
+func (q *DNSHeader) GenId() {
 	q.Id = genID()
 }
 
 // SetId Sets the ID of the request
-func (q *Query) SetId(t uint16) {
+func (q *DNSHeader) SetId(t uint16) {
 	q.Id = t
 }
 
 // SetRequest sets the type and name of the request
-func (q *Query) SetRequest(s string, t string) {
-	q.Request = NewQueryRequest()
+func (q *DNSHeader) SetRequest(s string, t string) {
+	q.Request = NewDNSHeaderRequest()
 	q.Request.SetClassDefault()
 	q.Request.SetType(t)
 	q.Request.SetName(s)
 }
 
-// Marshal buids the query into a byte array. The byte array is what will be sent
+// Marshal buids the DNSHeader into a byte array. The byte array is what will be sent
 // as part of the DNS packet to the server.
-func (q *Query) Marshal() []byte {
-	//return byte array of query
-	queryRequestb := q.Request.Marshal()
+func (q *DNSHeader) Marshal() []byte {
+	//return byte array of DNSHeader
+	DNSHeaderRequestb := q.Request.Marshal()
 	idb := make([]byte, 2)
 	flagsb := make([]byte, 2)
 	qdcountb := make([]byte, 2)
@@ -79,6 +80,6 @@ func (q *Query) Marshal() []byte {
 	b = append(b, nscountb...)
 	b = append(b, arcountb...)
 	b = append(b, arrcountb...)
-	b = append(b, queryRequestb...)
+	b = append(b, DNSHeaderRequestb...)
 	return b
 }
